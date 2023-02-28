@@ -21,4 +21,6 @@ else
     exit 1
 fi
 
+cp -r ./src/html ./build/ 
+
 yarn tsc -p tsconfig.json && cp ./src/$OPENAPIFILE ./build/$OPENAPIFILE

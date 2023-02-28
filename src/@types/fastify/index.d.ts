@@ -1,6 +1,4 @@
 import Redis from 'ioredis';
-import { Knex } from 'knex';
-import models from '../../models/index.js';
 
 type Config = {
   LOG_LEVEL: string;
@@ -13,22 +11,11 @@ type Config = {
   REDIS_DB?: number;
   REDIS_PORT?: number;
   REDIS_HOST?: string;
-  DB_CONNECT_STRING?: string;
-  DB_USER?: string;
-  DB_PASSWORD?: string;
 };
 
 declare module 'fastify' {
-  export declare namespace fastifyObjectionjs {
-    export interface FastifyObjectionObject {
-      knex: Knex
-      models: typeof models
-    }
-  }
-
   interface FastifyInstance {
     config: Config
-    objection: fastifyObjectionjs.FastifyObjectionObject
     redis: Redis
   }
 
@@ -36,6 +23,8 @@ declare module 'fastify' {
   }
 
   export interface FastifyReply {
+    bypassWrapper: (val: boolean) => FastifyReply;
+    wrapperIsBypassed: boolean;
     setApi: (apiObj:{
       status?: string,
       code: string, message: string,
@@ -45,5 +34,6 @@ declare module 'fastify' {
       code: string;
       status: string;
     };
+
   }
 }

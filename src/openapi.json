@@ -1,5 +1,5 @@
 {
-  "openapi": "3.0.1",
+  "openapi": "3.0.0",
   "info": {
     "title": "Fastify",
     "description": "API Description",
@@ -11,13 +11,48 @@
     }
   ],
   "paths": {
-    "/": {
-      "get": {
+    "/sms": {
+      "post": {
         "tags": [
           "root"
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "examples": {
+                "Contoh-01": {
+                  "value": {
+                    "msg": "hello",
+                    "phone": "08123456789",
+                    "href": "some-ref",
+                    "trx": "OTP"
+                  }
+                }
+              },
+              "schema": {
+                "type": "object",
+
+                "required": ["msg", "phone", "href", "trx"],
+                "properties": {
+                  "msg": {
+                    "type": "string"                  },
+                  "phone": {
+                    "type": "string"
+                  },
+                  "href": {
+                    "type": "string"
+                  },
+                  "trx":{
+                    "type": "string",
+                    "enum": ["OTP"]
+                  }
+                }
+              }
+            }
+          }
+        },
         "summary": "root folder",
-        "description": "Get API status",
+        "description": "Get all inbox messages",
         "operationId": "getRoot",
         "responses": {
           "200": {
@@ -34,14 +69,23 @@
         "deprecated": false
       }
     },
-    "/plain": {
+    "/inbox/{phone}": {
       "get": {
         "tags": [
-          "root"
+          "inbox"
         ],
-        "summary": "root folder",
-        "description": "Get API status",
-        "operationId": "getRootPlain",
+        "summary": "Get all inbox messages",
+        "description": "Get all inbox messages",
+        "parameters": [{
+          "name": "phone",
+          "in": "path",
+          "description": "Phone number",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }],
+        "operationId": "getInboxByPhone",
         "responses": {
           "200": {
             "description": "Result",
@@ -57,110 +101,14 @@
         "deprecated": false
       }
     },
-    "/goods/{id}": {
-      "get": {
-        "operationId": "getGoodById",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "id",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Result",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/DataResponse"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/config": {
+    "/inbox": {
       "get": {
         "tags": [
-          "root"
+          "inbox"
         ],
-        "summary": "root folder",
-        "description": "Get API status",
-        "operationId": "getConfig",
-        "responses": {
-          "200": {
-            "description": "Result",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/DataResponse"
-                }
-              }
-            }
-          }
-        },
-        "deprecated": false
-      }
-    },
-    "/client-error": {
-      "get": {
-        "tags": [
-          "root"
-        ],
-        "summary": "root folder",
-        "description": "Get API status",
-        "operationId": "getClientError",
-        "responses": {
-          "200": {
-            "description": "Result",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/DataResponse"
-                }
-              }
-            }
-          }
-        },
-        "deprecated": false
-      }
-    },
-    "/server-error": {
-      "get": {
-        "tags": [
-          "root"
-        ],
-        "summary": "root folder",
-        "description": "Get API status",
-        "operationId": "getServerError",
-        "responses": {
-          "200": {
-            "description": "Result",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/DataResponse"
-                }
-              }
-            }
-          }
-        },
-        "deprecated": false
-      }
-    },
-    "/unknown-error": {
-      "get": {
-        "tags": [
-          "root"
-        ],
-        "summary": "root folder",
-        "description": "Get API status",
-        "operationId": "getUnknownError",
+        "summary": "Get all inbox messages",
+        "description": "Get all inbox messages",
+        "operationId": "getInbox",
         "responses": {
           "200": {
             "description": "Result",

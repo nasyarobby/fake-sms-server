@@ -1,52 +1,71 @@
 import { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
-import ClientError from '../plugins/ClientError.js';
-import ServerError from '../plugins/ServerError.js';
-import getConfig from './getConfig.js';
 
-import RESPONSE_CODES from '../responseCodes/responseCodes.js';
+export type SmsRequestBody = {
+  phone: string;
+  msg: string;
+  href: string;
+  trx: 'OTP'
+};
+
+export type InboxRequestParams = {
+  phone: string;
+};
 
 export default function getService(fastify:FastifyInstance) {
   return {
-    getRoot: async (req: FastifyRequest, res: FastifyReply) => {
-      // simple response
-      // the following line will crash Fastify because no await
-      // fastify.redis.set('time', new Date().toISOString());
-      // this will not crash Fastify
-      await fastify.redis.set('time', new Date().toISOString());
+    getRoot: async (req: FastifyRequest<{ Body: SmsRequestBody }>, res: FastifyReply) => {
+      let { phone } = req.body;
+      if (phone.startsWith('0')) {
+        phone = phone.replace('0', '62');
+      }
 
-      const time = await fastify.redis.get('time');
-      res.setApi(RESPONSE_CODES.SUCCESS).send({ foo: 'bar', time });
+      const content = JSON.stringify({
+        correlation_id: '1234567890',
+        sender: { short_code: '5200' },
+        recipients: [{ mdn: phone }],
+        content: {
+          text: req.body.msg,
+        },
+        errors: [{ code: '0', message: 'Success' }],
+      });
+
+      // save sms to redis
+      await fastify.redis.lpush(`sms:${phone}`, JSON.stringify({ from: '5200', content: req.body.msg, date: new Date() }));
+      await fastify.redis.sadd('sms:inbox', phone);
+      return res.bypassWrapper(true).send({ kode: '1', message: 'Data berhasil dikirim', konten: content });
     },
 
-    getGoodById: async (req: FastifyRequest & { params: { id: string } }, res: FastifyReply) => {
-      const good = await fastify.objection.models.GoodsModel.query().where('id', req.params.id).debug();
-      res.setApi(RESPONSE_CODES.SUCCESS).send({ good });
+    getInboxByPhone: async (
+      req: FastifyRequest<{ Params: InboxRequestParams }>,
+      res: FastifyReply,
+    ) => {
+      const { phone } = req.params;
+      const inbox = await fastify.redis.lrange(`sms:${phone}`, 0, 100);
+      if (inbox.length === 0) {
+        await fastify.redis.srem('sms:inbox', phone);
+      } else {
+        await fastify.redis.sadd('sms:inbox', phone);
+      }
+      return res.send({ phone, inbox: inbox.map((item) => JSON.parse(item)) });
     },
 
-    getRootPlain: (req: FastifyRequest, res: FastifyReply) => {
-      res.send({ foo: 'bar' });
-    },
-
-    getClientError: (req: FastifyRequest, res: FastifyReply) => {
-      throw new ClientError({
-        ...RESPONSE_CODES.CLIENT_ERROR,
-        data: { foo: 'bar' },
-        originalError: new Error('Error client'),
+    getInbox: async (req: FastifyRequest, res: FastifyReply) => {
+      const phones = await fastify.redis.smembers('sms:inbox');
+      req.log.info({ phones }, 'Pone');
+      const inbox = await Promise.all(phones.map(async (phone) => {
+        const sms = await fastify.redis.lrange(`sms:${phone}`, 0, 1);
+        const length = await fastify.redis.llen(`sms:${phone}`);
+        return {
+          phone,
+          lastText: JSON.parse(sms[0]),
+          numOfSms: length,
+        };
+      }));
+      // sort by date propery but convert it to Date first
+      return res.send({
+        // eslint-disable-next-line max-len
+        inbox: inbox.sort((a, b) => new Date(b.lastText.date).getTime() - new Date(a.lastText.date).getTime()),
       });
     },
-
-    getServerError: (req: FastifyRequest, res: FastifyReply) => {
-      throw new ServerError({
-        ...RESPONSE_CODES.SERVER_ERROR,
-        data: { foo: 'bar' },
-        originalError: new Error('Error Server'),
-      });
-    },
-
-    getUnknownError: (req: FastifyRequest, res: FastifyReply) => {
-      throw new Error('Unknown error');
-    },
-
-    getConfig: getConfig(fastify),
   };
 }

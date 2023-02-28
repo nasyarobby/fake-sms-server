@@ -27,11 +27,24 @@ function replyWrapper(...[fastify, opts, pluginCb] : Parameters<DjpapiReplyWrapp
       },
       );
 
+    fastify.decorateReply<(
+    val: boolean) => any>(
+      'bypassWrapper',
+      function bypassWrapper(val: boolean) {
+        this.wrapperIsBypassed = val;
+        return this;
+      },
+      );
+
     fastify.addHook('preSerialization', (request: FastifyRequest, reply: FastifyReply, payload: any, done:any) => {
       const err = null;
 
       // this is the OpenAPI Schema, so we don't need to wrap it
       if (reply.statusCode === 404 || (payload && payload.openapi)) {
+        return done(err, payload);
+      }
+
+      if (reply.wrapperIsBypassed) {
         return done(err, payload);
       }
 

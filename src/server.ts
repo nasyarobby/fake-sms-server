@@ -2,7 +2,7 @@ import fastify from 'fastify';
 import fastifyEnv from '@fastify/env';
 import fastifyOpenapiGlue from 'fastify-openapi-glue';
 import * as url from 'url';
-import { knexSnakeCaseMappers } from 'objection';
+import fastifyStatic from '@fastify/static';
 import registerFastifySwagger from './plugins/registerFastifySwagger.js';
 import replyWrapperPlugin from './plugins/ReplyWrapper.js';
 import configSchema from './config.js';
@@ -10,8 +10,6 @@ import ioredisPlugin from './plugins/ioredis.js';
 import errorHandler from './plugins/errorHandler.js';
 import notFoundHandler from './plugins/notFoundHandler.js';
 import getService from './services/index.js';
-import objectionjs from './plugins/objectionjs.js';
-import Models from './models/index.js';
 
 async function start() {
   const app = fastify({ logger: true });
@@ -26,7 +24,12 @@ async function start() {
   /**
  * Plugin: ReplyWrapper
  */
+  const dirname = url.fileURLToPath(new URL('.', import.meta.url));
+
   await app.register(replyWrapperPlugin);
+  await app.register(fastifyStatic, {
+    root: `${dirname}html`,
+  });
 
   /**
  * Plugin: Swagger UI
@@ -45,21 +48,6 @@ async function start() {
   // eslint-disable-next-line no-console
   console.table(app.config);
 
-  await app.register(objectionjs, {
-    knexConfig: {
-      client: 'oracledb',
-      connection: {
-        connectString: app.config.DB_CONNECT_STRING,
-        user: app.config.DB_USER,
-        password: app.config.DB_PASSWORD,
-      },
-      ...knexSnakeCaseMappers({
-        upperCase: true,
-      }),
-    },
-    models: Models,
-  });
-
   /**
  * Plugin: IORedis {@file ./plugins/ioredis.ts}
  * akses via req.redis
@@ -72,12 +60,14 @@ async function start() {
  * Plugin: fastify-openapi-glue
  * Spek API disimpan pada file openapi.json
  */
-  const dirname = url.fileURLToPath(new URL('.', import.meta.url));
   await app.register(fastifyOpenapiGlue, {
     specification: `${dirname}/openapi.json`,
     service: getService(app),
     prefix: '/api',
   });
+
+  app.get('/', async (request, reply) => reply.sendFile('index.html'));
+  app.get('/inbox/:number', async (request, reply) => reply.sendFile('index.html'));
 
   app.ready((errorOnAppReady) => {
     app.log.level = app.config.LOG_LEVEL;
