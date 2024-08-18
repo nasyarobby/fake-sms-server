@@ -24,6 +24,12 @@ COPY package.json yarn.lock ./
 ADD ./compile.sh ./
 RUN yarn install --production=true --ignore-engines
 
+RUN mkdir /.pm2
+RUN chgrp -R 0 /.pm2 && \
+    chmod -R g=u /.pm2 
+
 # Now copy the built files
 COPY --from=builder /server/build ./
+RUN mkdir ./html
+COPY ./src/html/* ./html
 CMD [ "pm2-runtime", "start", "server.js"]
